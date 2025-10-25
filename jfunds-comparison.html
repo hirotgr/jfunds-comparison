@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>投資信託 2本比較（正規化＋比率）</title>
+  <title>投資信託比較 （2本: 正規化＋乖離率）</title>
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600&display=swap" rel="stylesheet">
   <style>
@@ -85,7 +85,7 @@
   <div class="wrap">
     <div id="topFixed">
       <header style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between;">
-        <div style="font-size:18px;font-weight:600;">投資信託比較（2本 : 正規化＋乖離率）</div>
+        <div style="font-size:18px;font-weight:600;">投資信託比較（2本: 正規化＋乖離率）</div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
           <a href="https://hirotgr.github.io/jfunds-nav-chart/jfunds-nav-chart.html" target="_blank" class="link-btn">jfunds-nav-chart</a>
           <button id="helpBtn" class="help-btn" title="使い方を開く">ヘルプ</button>
@@ -111,7 +111,7 @@
               <div class="ctrl-row">
                 <label style="margin-right:10px"><input id="logScale" type="checkbox"> 対数チャート（上段のみ）</label>
                 <button id="savePng" class="btn">PNG保存</button>
-                <button id="swapBtn" class="btn" title="下段の比率の分母/分子を入れ替える">分母/分子入れ替え</button>
+                <button id="swapBtn" class="btn" title="下段チャートの乖離率計算で分母/分子を入れ替える">分母/分子入れ替え</button>
               </div>
             </div>
           </div>
@@ -127,10 +127,10 @@
 
     <div class="charts" id="chartsWrap">
       <div id="topChart" class="panel" aria-label="正規化チャート"></div>
-      <div id="bottomChart" class="panel" aria-label="比率チャート（2本目/1本目 − 1）"></div>
+      <div id="bottomChart" class="panel" aria-label="乖離率チャート（2本目/1本目 − 1）"></div>
     </div>
     <footer style="margin-top:10px;text-align:center;color:#9fb0c3;font-size:12px;">
-      <div><a href="https://github.com/hirotgr/jfunds-comparison" target="_blank" style="color:#6aa0ff;text-decoration:none;">jfunds-comparison</a> version 0.1.1 : created by GPT-5 Thinking with <a href="https://x.com/_hirotgr" target="_blank" style="color:#6aa0ff;text-decoration:none;">@_hirotgr</a></div>
+      <div><a href="https://github.com/hirotgr/jfunds-comparison" target="_blank" style="color:#6aa0ff;text-decoration:none;">jfunds-comparison</a> version 0.1.2 : created by GPT-5 Thinking with <a href="https://x.com/_hirotgr" target="_blank" style="color:#6aa0ff;text-decoration:none;">@_hirotgr</a></div>
       <div>powered by <a href="https://jp.tradingview.com/lightweight-charts/" target="_blank" style="color:#6aa0ff;text-decoration:none;">Lightweight Charts™︎ (©TradingView)</a>, License: Apache2.0 (see LICENSE and NOTICE on <a href="https://github.com/tradingview/lightweight-charts" target="_blank" style="color:#6aa0ff;text-decoration:none;">GitHub</a>)</div>
 
     </footer>
@@ -264,6 +264,7 @@
         <ul>
           <li>2025/10/24 : version 0.1.0 : 初期リリース</li>
           <li>2025/10/25 : version 0.1.1 : 一部文言の修正</li>
+          <li>2025/10/25 : version 0.1.2 : 一部文言の修正</li>
         </ul>
 
       </div>
