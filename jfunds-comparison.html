@@ -85,7 +85,7 @@
   <div class="wrap">
     <div id="topFixed">
       <header style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between;">
-        <div style="font-size:18px;font-weight:600;">投資信託比較（2本 : 正規化チャート＋乖離比率）</div>
+        <div style="font-size:18px;font-weight:600;">投資信託比較（2本 : 正規化＋乖離率）</div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
           <a href="https://hirotgr.github.io/jfunds-nav-chart/jfunds-nav-chart.html" target="_blank" class="link-btn">jfunds-nav-chart</a>
           <button id="helpBtn" class="help-btn" title="使い方を開く">ヘルプ</button>
@@ -130,7 +130,7 @@
       <div id="bottomChart" class="panel" aria-label="比率チャート（2本目/1本目 − 1）"></div>
     </div>
     <footer style="margin-top:10px;text-align:center;color:#9fb0c3;font-size:12px;">
-      <div><a href="https://github.com/hirotgr/jfunds-comparison" target="_blank" style="color:#6aa0ff;text-decoration:none;">jfunds-comparison</a> version 0.1.0 : created by GPT-5 Thinking with <a href="https://x.com/_hirotgr" target="_blank" style="color:#6aa0ff;text-decoration:none;">@_hirotgr</a></div>
+      <div><a href="https://github.com/hirotgr/jfunds-comparison" target="_blank" style="color:#6aa0ff;text-decoration:none;">jfunds-comparison</a> version 0.1.1 : created by GPT-5 Thinking with <a href="https://x.com/_hirotgr" target="_blank" style="color:#6aa0ff;text-decoration:none;">@_hirotgr</a></div>
       <div>powered by <a href="https://jp.tradingview.com/lightweight-charts/" target="_blank" style="color:#6aa0ff;text-decoration:none;">Lightweight Charts™︎ (©TradingView)</a>, License: Apache2.0 (see LICENSE and NOTICE on <a href="https://github.com/tradingview/lightweight-charts" target="_blank" style="color:#6aa0ff;text-decoration:none;">GitHub</a>)</div>
 
     </footer>
@@ -147,7 +147,7 @@
         <h2>概要</h2>
         <p>
           <strong>jfunds-comparison</strong> は、投資信託のCSVファイルを <strong>2本</strong>読み込み、
-          上段に <strong>正規化チャート</strong>、下段に <strong>乖離比率（2本目のファンドの正規化価額/1本目のファンドの正規化価額 − 1）</strong> を描画するツールです。
+          上段に <strong>正規化チャート</strong>、下段に <strong>乖離率（2本目のファンドの正規化価額/1本目のファンドの正規化価額 − 1）</strong> を描画するツールです。
           X 軸（時間範囲）は上下のチャートで <strong>常に同期</strong> し、外側コンテナ右下の“つまみ”で <strong>横・縦</strong>のサイズを同時に変更できます。
         </p>
         <ul>
@@ -200,7 +200,7 @@
         <ol>
           <li>画面上部のドロップ領域に、<strong>CSV を 2 つ</strong>ドラッグ＆ドロップするか、「クリックして選択」で 2 つ選びます。</li>
           <li>CSV ファイルを2つ読み込むと、<strong>両 CSV の最古共通日</strong>を基準に正規化して上段を描画します。</li>
-          <li>同時に、下段に <strong>乖離比率（2本目のファンドの正規化価額/1本目のファンドの正規化価額 − 1）</strong>を描画します（欠損日付はホワイトスペース点として補完）。</li>
+          <li>同時に、下段に <strong>乖離率（2本目のファンドの正規化価額/1本目のファンドの正規化価額 − 1）</strong>を描画します（欠損日付はホワイトスペース点として補完）。</li>
         </ol>
 
         <h2>表示設定</h2>
@@ -209,7 +209,7 @@
               「正規化基準日更新」ボタンで <strong>厳密一致</strong>の基準日を指定して再描画します（どちらかにその日付が無い場合はエラー）。</li>
           <li><strong>対数チャート</strong>（上段のみ）: チェックすると価格スケールが対数になります。</li>
           <li><strong>PNG 保存</strong>: 上下チャートを 1 枚に合成し、凡例を左上に描画して保存します。</li>
-          <li><strong>分母/分子入れ替え</strong>: 下段の乖離比率の分母/分子を入れ替え <code>(2本目ファンド/1本目ファンド − 1)</code> ⇄ <code>(1本目ファンド/2本目ファンド − 1)</code> （両方の系列をあらかじめ計算・保持）。</li>
+          <li><strong>分母/分子入れ替え</strong>: 下段の乖離率の分母/分子を入れ替え <code>(2本目ファンド/1本目ファンド − 1)</code> ⇄ <code>(1本目ファンド/2本目ファンド − 1)</code> （両方の系列をあらかじめ計算・保持）。</li>
         </ul>
 
         <h2>凡例と系列の削除</h2>
@@ -255,14 +255,15 @@
         </ul>
 
 
-        <h2>バージョン情報</h2>
+        <h2>キーボード/操作メモ</h2>
         <ul>
           <li><strong>Esc</strong>: ヘルプを閉じる</li>
           <li><strong>右クリック</strong>: メニューは無効化。画像保存は「PNG 保存」を使用</li>
-        </ul>        <h2>キーボード/操作メモ</h2>
-
+        </ul>
+        <h2>バージョン情報</h2>
         <ul>
           <li>2025/10/24 : version 0.1.0 : 初期リリース</li>
+          <li>2025/10/25 : version 0.1.1 : 一部文言の修正</li>
         </ul>
 
       </div>
@@ -1061,7 +1062,7 @@ function __nowClock(){ return (typeof performance !== 'undefined' && performance
     ratioMode = (ratioMode === '21') ? '12' : '21';
     const data = (ratioMode === '21') ? ratio21Cache : ratio12Cache;
     lineRatio.setData(data);
-    appendStatus(`乖離比率: 分母/分子を入れ替えました → ${(ratioMode==='21')?'(2/1 - 1)':'(1/2 - 1)'}`);
+    appendStatus(`乖離率: 分母/分子を入れ替えました → ${(ratioMode==='21')?'(2/1 - 1)':'(1/2 - 1)'}`);
   });
 
   // initial
