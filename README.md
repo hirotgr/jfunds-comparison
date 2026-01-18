@@ -6,9 +6,7 @@
 
 # ダウンロード
 
-このツールはローカルにダウンロードして使用可能することができます。
-
-* [jfunds-comparison.zip (サンプルCSV同梱)](https://raw.githubusercontent.com/hirotgr/jfunds-comparison/main/jfunds-comparison.zip)
+このツールはHTMLファイル単体で機能するので「名前を付けて保存」などでローカルにダウンロードして使用可能することができます。
 
 # 関連ツール
 
