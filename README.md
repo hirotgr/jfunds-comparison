@@ -2,10 +2,11 @@
 # GitHub Pages
 
 * [https://hirotgr.github.io/jfunds-comparison/jfunds-comparison.html](https://hirotgr.github.io/jfunds-comparison/jfunds-comparison.html)
+* 価額データは各投資信託運用会社のWebサイトからCSVファイルをダウンロードしてください。
 
 # ダウンロード
 
-このツールはHTMLファイル単体で機能するので「名前を付けて保存」などでローカルにダウンロードして使用可能することができます。
+このツールはHTMLファイル単体で機能するので「名前を付けて保存」などでローカルにダウンロードして使用することができます。
 
 # 関連ツール
 
