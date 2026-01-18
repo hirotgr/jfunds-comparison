@@ -2,7 +2,6 @@
 # GitHub Pages
 
 * [https://hirotgr.github.io/jfunds-comparison/jfunds-comparison.html](https://hirotgr.github.io/jfunds-comparison/jfunds-comparison.html)
-  * サンプルCSVファイル: [ダウンロード](https://raw.githubusercontent.com/hirotgr/jfunds-nav-chart/main/sample-csv.zip)
 
 # ダウンロード
 
