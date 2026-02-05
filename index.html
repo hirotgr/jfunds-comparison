@@ -1,0 +1,1413 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>投資信託比較 （2本: 正規化＋乖離率）</title>
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#0b0f14; --panel:#111720; --text:#e8eef6; --muted:#9fb0c3; --accent:#6aa0ff; }
+    body{margin:0 10px;padding:16px;background:var(--bg);color:var(--text);font-family:'Noto Sans JP',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:none;margin:0 auto}
+    /* 上部（ヘッダー＋表示設定＋ステータス）を初期幅で固定 */
+    #topFixed{ width:100%; margin:0 auto; max-width:1100px; }
+    .panel{background:var(--panel);border-radius:12px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+    .row{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;align-items:start}
+    @media (max-width:900px){.row{grid-template-columns:1fr}}
+    .drop{border:1.5px dashed #2a3443;border-radius:10px;padding:10px 12px;text-align:center;background:#0f141c;cursor:pointer;display:block;transition:box-shadow .15s ease, border-color .15s ease; font-size:13px}
+    .drop.dragover{ box-shadow:0 0 0 2px rgba(106,160,255,.35) inset; border-color:#6aa0ff; }
+    #file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1;left:-9999px;top:auto}
+    .controls{display:flex;flex-direction:column;gap:8px;align-items:flex-start;flex-wrap:nowrap;margin-top:8px}
+    .ctrl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{cursor:pointer;border:1px solid #2a3443;background:#152033;color:var(--text);border-radius:8px;padding:6px 12px;font-size:13px}
+    input.datech{padding:8px 10px;border-radius:10px;border:1px solid #2a3443;background:#0f141c;color:var(--text);font-size:13px;text-align:center}
+    .status{font-size:12px;color:var(--muted);white-space:pre-wrap;min-height:72px;height:120px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#2a3443 #0f141c}
+    #status::-webkit-scrollbar{ width:10px; height:10px }
+    #status::-webkit-scrollbar-track{ background:#0f141c }
+    #status::-webkit-scrollbar-thumb{ background:#2a3443; border-radius:8px; border:2px solid #0f141c }
+    /* nav-chartと同じ見出しサイズ */
+    h1{font-size:18px;margin:0 0 10px}
+    .hint{font-size:11px;color:var(--muted);margin-top:4px}
+    .legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--text);margin:0 0 12px}
+    .legend-item{display:flex;gap:8px;align-items:center;background:#0f141c;border:1px solid #2a3443;border-radius:8px;padding:6px 8px}
+    .legend-item .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+    .legend-item .name{opacity:.95}
+    .legend-item .del{margin-left:6px;border:1px solid #2a3443;background:#152033;color:#cbd5e1;border-radius:6px;padding:2px 6px;font-size:12px;line-height:1.2;cursor:pointer}
+    .legend-item .del:hover{background:#1b2738;border-color:#3a4960}
+    /* Charts container: vertical stacking; width will be controlled by a JS resizer handle */
+    .charts{
+      display:grid;
+      grid-template-rows:1fr auto;
+      gap:8px;
+      resize: both;            /* 右下つまみでXY同時リサイズ */
+      overflow: hidden;        /* CSS resize要件: overflowはvisible以外 */
+      min-width: 320px;
+      min-height: 360px;       /* 下限高さ（上下2段が潰れないように） */
+      padding-right: 14px;     /* 外側ハンドルと下段ハンドルの重なりを防止 */
+      padding-bottom: 14px;    /* 同上 */
+      box-sizing: border-box;
+    }
+    #topChart,#bottomChart{height:420px;min-height:220px;width:100%;min-width:320px;resize:vertical;overflow:hidden;padding-bottom:56px;box-sizing:border-box;position:relative}
+    #bottomChart{height:220px}
+    #topChart>div,#bottomChart>div{ overflow: visible !important; }
+    .help-btn{ margin-left:auto; border:1px solid #2a3443; background:#152033; color:var(--text); border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; }
+    .help-btn:hover{ background:#1b2738; border-color:#3a4960; }
+    .link-btn{ border:1px solid #2a3443; background:#152033; color:#6aa0ff; border-radius:8px; padding:6px 10px; font-size:13px; text-decoration:none; cursor:pointer; }
+    .link-btn:hover{ background:#1b2738; border-color:#3a4960; }
+    .modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.6); z-index:9999; }
+    .modal.open{ display:flex; }
+    .modal-panel{ width:min(980px, 92vw); height:min(86vh, 900px); background:var(--panel); border:1px solid #2a3443; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.45); display:flex; flex-direction:column; overflow:hidden; }
+    .modal-head{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #2a3443; background:#0f141c; }
+    .modal-head .title{ font-weight:600; font-size:14px; color:var(--text); }
+    .modal-close{ margin-left:auto; border:1px solid #2a3443; background:#152033; color:#cbd5e1; border-radius:8px; padding:4px 10px; font-size:12px; cursor:pointer; }
+    .modal-close:hover{ background:#1b2738; border-color:#3a4960; }
+    .modal-body{ padding:14px; overflow:auto; color:var(--text); font-size:13px; }
+    /* nav-chartのヘルプモーダルに合わせる */
+    .modal-body h1,.modal-body h2,.modal-body h3{ margin:14px 0 8px; }
+    .modal-body code, .modal-body pre{ background:#0f141c; border:1px solid #2a3443; color:#cbd5e1; border-radius:6px; }
+    .modal-body pre{ padding:10px; overflow:auto; }
+    .modal-body table{ width:100%; border-collapse:collapse; margin:10px 0; }
+    .modal-body th,.modal-body td{ border:1px solid #2a3443; padding:6px 8px; text-align:left; }
+    .modal-body a{ color:#6aa0ff; text-decoration:none; }
+    .modal-body ul{ margin:6px 0 6px 20px; }
+    .modal-body li{ margin:4px 0; }
+    .modal{ text-align:left; }
+    .modal-body{ text-align:left; }
+    .modal-body ul, .modal-body ol{ text-align:left; }
+    /* 「正規化基準日」「対数チャート（上段のみ）」のフォントサイズ */
+    .controls .ctrl-row > label {
+    font-size: 14px;   /* ← お好みのサイズに */
+    }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="topFixed">
+      <header style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between;">
+        <div style="font-size:18px;font-weight:600;">投資信託比較（2本: 正規化＋乖離率）</div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <a href="https://hirotgr.github.io/jfunds-nav-chart/jfunds-nav-chart.html" target="_blank" class="link-btn">jfunds-nav-chart</a>
+          <button id="helpBtn" class="help-btn" title="使い方を開く">ヘルプ</button>
+        </div>
+      </header>
+
+      <div class="panel" style="margin-bottom:12px">
+        <div class="row">
+          <div>
+            <label for="file" id="drop" class="drop" tabindex="0">
+              ここをクリックしてCSVを選択（2個まで）<br><span class="hint">またはドラッグ＆ドロップ</span>
+            </label>
+            <input id="file" type="file" accept=".csv,text/csv" multiple>
+            <div class="controls">
+              <div><label class="hint">表示設定</label></div>
+              <div class="ctrl-row">
+                <label style="margin-right:8px">正規化基準日</label>
+                <input id="baseY" class="datech" type="text" inputmode="numeric" pattern="\\d{4}" maxlength="4" placeholder="YYYY" style="width:64px;margin-right:4px">
+                <input id="baseM" class="datech" type="text" inputmode="numeric" pattern="\\d{1,2}" maxlength="2" placeholder="MM" style="width:40px;margin-right:4px">
+                <input id="baseD" class="datech" type="text" inputmode="numeric" pattern="\\d{1,2}" maxlength="2" placeholder="DD" style="width:40px;margin-right:10px">
+                <button id="updateBase" class="btn" title="入力した基準日で再正規化">正規化基準日更新</button>
+              </div>
+              <div class="ctrl-row">
+                <label style="margin-right:10px"><input id="logScale" type="checkbox"> 対数チャート（上段のみ）</label>
+                <button id="savePng" class="btn">PNG保存</button>
+                <button id="swapBtn" class="btn" title="下段チャートの乖離率計算で分母/分子を入れ替える">分母/分子入れ替え</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel status-panel">
+            <div style="font-size:13px;margin-bottom:4px">ステータス</div>
+            <div id="status" class="status">待機中</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="legend" class="legend"></div>
+
+    <div class="charts" id="chartsWrap">
+      <div id="topChart" class="panel" aria-label="正規化チャート"></div>
+      <div id="bottomChart" class="panel" aria-label="乖離率チャート（2本目/1本目 − 1）"></div>
+    </div>
+    <footer style="margin-top:10px;text-align:center;color:#9fb0c3;font-size:12px;">
+      <div><a href="https://github.com/hirotgr/jfunds-comparison" target="_blank" style="color:#6aa0ff;text-decoration:none;">jfunds-comparison</a> version 0.1.2 : created by GPT-5 Thinking with <a href="https://x.com/_hirotgr" target="_blank" style="color:#6aa0ff;text-decoration:none;">@_hirotgr</a></div>
+      <div>powered by <a href="https://jp.tradingview.com/lightweight-charts/" target="_blank" style="color:#6aa0ff;text-decoration:none;">Lightweight Charts™︎ (©TradingView)</a>, License: Apache2.0 (see LICENSE and NOTICE on <a href="https://github.com/tradingview/lightweight-charts" target="_blank" style="color:#6aa0ff;text-decoration:none;">GitHub</a>)</div>
+
+    </footer>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal-panel" tabindex="-1">
+      <div class="modal-head">
+        <div id="helpTitle" class="title">使い方マニュアル</div>
+        <button id="helpClose" class="modal-close" aria-label="閉じる">閉じる</button>
+      </div>
+      <div class="modal-body">
+        <h2>概要</h2>
+        <p>
+          <strong>jfunds-comparison</strong> は、投資信託のCSVファイルを <strong>2本</strong>読み込み、
+          上段に <strong>正規化チャート</strong>、下段に <strong>乖離率（2本目のファンドの正規化価額/1本目のファンドの正規化価額 − 1）</strong> を描画するツールです。
+          X 軸（時間範囲）は上下のチャートで <strong>常に同期</strong> し、外側コンテナ右下の“つまみ”で <strong>横・縦</strong>のサイズを同時に変更できます。
+        </p>
+        <ul>
+          <li>このアプリはマニュアルを含め、全部ChatGPT-5 Thinkingが書いたものです。</li>
+          <li>TradingViewがApache 2.0ライセンスで提供する<strong>Lightweight Charts™︎</strong>ライブラリを使用しています。ライセンスなどは以下を参照してください。
+            <ul>
+              <li><a href="https://jp.tradingview.com/lightweight-charts/" target="_blank">https://jp.tradingview.com/lightweight-charts/</a></li>
+              <li><a href="https://github.com/tradingview/lightweight-charts" target="_blank">https://github.com/tradingview/lightweight-charts</a></li>
+            </ul>
+          </li>
+          <li><strong>Lightweight Charts™︎</strong>ライブラリ取得のために CDN(<a href="https://cdn.jsdelivr.net/" target="_blank">https://cdn.jsdelivr.net/</a>)への接続性が必要です</li>
+          <li>Googleのフォントライブラリ(<a href="https://fonts.googleapis.com" target="_blank">https://fonts.googleapis.com</a>)への接続性が必要です。</li>
+          <li>GoogleとAdobeが共同開発し、Googleから提供されている Noto Sans JP フォントを使用しています。ライセンスはSIL Open Font License 1.1です。詳しくは以下を参照してください。</li>
+            <ul>
+              <li><a href="https://developers.google.com/fonts/faq?hl=ja" target="_blank">https://developers.google.com/fonts/faq?hl=ja</a></li>
+              <li><a href="https://fonts.google.com/" target="_blank">https://fonts.google.com/</a></li>
+            </ul>
+          </li>
+        </ul>
+        <ul>
+          <br>
+          <li>GitHubからこのHTMLファイルをダウンロードし、ダブルクリックなどによりファイルをブラウザで開くだけで使えます。</li>
+          <li>CSVファイルは「ファンド名.csv」形式に名前を変えてください。
+            <ul>
+              <li>ただし、<strong>1行目がCSVヘッダでない場合</strong>は、1行目の文字列をラベル(ファンド名)と仮定して読み込みますのでファイル名変更は不要です。</li>
+              <li>SBI証券からダウンロードしたCSVファイルのように、複数行に渡ってCSVヘッダ以外の文字列がある場合は対応していません。</li>
+            </ul>
+          </li>
+          <br>
+        </ul>
+        <ul>
+          <br>
+          <li>このアプリの使用によって生じた損害に対して@_hirotgrはいかなる責任も負いません。</li>
+          <li>このアプリのリポジトリ: <a href="https://github.com/hirotgr/jfunds-comparison" target="_blank">https://github.com/hirotgr/jfunds-comparison</a></li>
+          <br>
+        </ul>
+        <hr>
+        <h2>対応ファイル・文字コード・区切り</h2>
+        <ul>
+          <li>拡張子: <code>.csv</code></li>
+          <li>文字コード: <strong>Shift_JIS 優先</strong>で自動判定（UTF-8 もスコア評価を行い自動判定）</li>
+          <li>区切り文字: <strong>カンマ / タブ / セミコロン</strong>に対応（ヘッダー行を自動検出）</li>
+          <li>1 行目が <strong>ファンド名</strong> の場合はそれを銘柄名として使用。
+              1 行目がヘッダーの場合はファイル名から拡張子 <code>.csv</code> を除いたものを銘柄名として使用。</li>
+          <li>日付列は <strong>ヘッダー名の別名集合</strong>または <strong>内容のパース率</strong>で自動判定。
+              価格列（基準価額）も同様に数値列の判定で自動選択。</li>
+        </ul>
+
+        <h2>基本的な使い方</h2>
+        <ol>
+          <li>画面上部のドロップ領域に、<strong>CSV を 2 つ</strong>ドラッグ＆ドロップするか、「クリックして選択」で 2 つ選びます。</li>
+          <li>CSV ファイルを2つ読み込むと、<strong>両 CSV の最古共通日</strong>を基準に正規化して上段を描画します。</li>
+          <li>同時に、下段に <strong>乖離率（2本目のファンドの正規化価額/1本目のファンドの正規化価額 − 1）</strong>を描画します（欠損日付はホワイトスペース点として補完）。</li>
+        </ol>
+
+        <h2>表示設定</h2>
+        <ul>
+          <li><strong>正規化基準日</strong>（YYYY / MM / DD）: 4 桁 + 2 桁 + 2 桁を入力すると <strong>自動で次の入力へフォーカス</strong>が移動します。
+              「正規化基準日更新」ボタンで <strong>厳密一致</strong>の基準日を指定して再描画します（どちらかにその日付が無い場合はエラー）。</li>
+          <li><strong>対数チャート</strong>（上段のみ）: チェックすると価格スケールが対数になります。</li>
+          <li><strong>PNG 保存</strong>: 上下チャートを 1 枚に合成し、凡例を左上に描画して保存します。</li>
+          <li><strong>分母/分子入れ替え</strong>: 下段の乖離率の分母/分子を入れ替え <code>(2本目ファンド/1本目ファンド − 1)</code> ⇄ <code>(1本目ファンド/2本目ファンド − 1)</code> （両方の系列をあらかじめ計算・保持）。</li>
+        </ul>
+
+        <h2>凡例と系列の削除</h2>
+        <ul>
+          <li>凡例の右側 <strong>「削除」</strong> ボタンでその CSV を削除します。</li>
+          <li>1 つだけ削除した場合は <strong>「2番目のCSVファイルを読み込んでください」</strong>と表示し、チャートは待機状態に戻ります。</li>
+          <li>2 つとも削除した場合は <strong>初期状態</strong>に戻ります。</li>
+          <li>同一ラベルの CSV を再読み込みした場合は <strong>置換</strong>（色は維持）。</li>
+        </ul>
+
+        <h2>チャート操作</h2>
+        <ul>
+          <li>上下の X 軸は <strong>ズーム・スクロールともに双方向同期</strong>。</li>
+          <li>外側コンテナ（上下を含む領域）の右下“つまみ”で <strong>横・縦を同時</strong>にリサイズ。</li>
+          <li>各パネル（上段/下段）の右下“つまみ”で <strong>縦方向（高さ）</strong>のみ個別リサイズ。</li>
+          <li>上段 Y=100.00、下段 Y=0.00 に <strong>白の点線の基準ライン</strong>を表示。</li>
+        </ul>
+
+        <h2>ツールチップ</h2>
+        <ul>
+          <li>クロスヘア移動で <strong>色スウォッチ + 値</strong>のみを表示（ファンド名は表示しません）。</li>
+          <li>日付の表示形式: <strong>X 軸ラベル: YYYY/MM/DD</strong>、<strong>ツールチップ内の時刻表示: YYYY-MM-DD</strong>。</li>
+        </ul>
+
+        <h2>ステータス欄</h2>
+        <ul>
+          <li>読み込みや処理のログを <strong>スクロール可能</strong>に表示。区切り線 <code>-----</code> でセパレート。</li>
+          <li><code>\n</code> は改行として描画されます（過去ログの参照が容易）。</li>
+        </ul>
+
+        <h2>エラーハンドリングとメッセージ</h2>
+        <ul>
+          <li>「ヘッダーに日付列が見つかりません」等の判定は nav-chart と同等ロジック。</li>
+          <li>基準日更新は <strong>厳密一致</strong>のみ許可（いずれかに存在しない場合はエラー）。</li>
+          <li>読み込み可能な CSV は <strong>2 本まで</strong>（上限超過時は警告）。</li>
+        </ul>
+
+        <h2>よくある質問（FAQ）</h2>
+        <ul>
+          <li><strong>同じ CSV を再度読み込むと？</strong> → 既存データとして検出し、<strong>置換</strong>します（色は維持）。</li>
+          <li><strong>日付が片方にしか無い期間をズームアウトしたい</strong> → 欠損日は <strong>ホワイトスペース点</strong>で補完し、上下 X 軸の同期を維持します。</li>
+          <li><strong>横幅を 1100px 以上にしたい</strong> → 上部エリアは初期幅で固定、チャート領域は自由に拡張可能です。</li>
+        </ul>
+
+
+        <h2>キーボード/操作メモ</h2>
+        <ul>
+          <li><strong>Esc</strong>: ヘルプを閉じる</li>
+          <li><strong>右クリック</strong>: メニューは無効化。画像保存は「PNG 保存」を使用</li>
+        </ul>
+        <h2>バージョン情報</h2>
+        <ul>
+          <li>2025/10/24 : version 0.1.0 : 初期リリース</li>
+          <li>2025/10/25 : version 0.1.1 : 一部文言の修正</li>
+          <li>2025/10/25 : version 0.1.2 : 一部文言の修正</li>
+        </ul>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const $ = (s)=>document.querySelector(s);
+  const statusEl = $('#status');
+  function setStatus(msg){ statusEl.textContent = msg; }
+  function appendStatus(msg){
+    if (!statusEl) return;
+    const escaped = String(msg)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\\n/g, '<br>');
+    const prev = statusEl.innerHTML;
+    statusEl.innerHTML = (prev ? prev + '<br>' : '') + escaped;
+    statusEl.scrollTop = statusEl.scrollHeight;
+  }
+function escapeHTML(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+
+  // Help modal
+  (function(){
+    const helpBtn = document.getElementById('helpBtn');
+    const helpModal = document.getElementById('helpModal');
+    const helpClose = document.getElementById('helpClose');
+    function open(){ helpModal.classList.add('open'); setTimeout(()=>helpClose.focus(),0); }
+    function close(){ helpModal.classList.remove('open'); }
+    helpBtn?.addEventListener('click', open);
+    helpClose?.addEventListener('click', close);
+    helpModal?.addEventListener('click', (e)=>{ if (e.target === helpModal) close(); });
+    window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') close(); });
+  })();
+
+  // utils
+  const FW_MAP = {'０':'0','１':'1','２':'2','３':'3','４':'4','５':'5','６':'6','７':'7','８':'8','９':'9','／':'/','－':'-','．':'.','，':','};
+  function toHalfWidth(s){ return String(s||'').replace(/[０-９／－．，]/g, ch => FW_MAP[ch] || ch); }
+  function normalizeEOLKeepCRLF(text){
+    if (/\r\n/.test(text)) return text;
+    if (/\r(?!\n)/.test(text)) return text.replace(/\r/g, '\n');
+    return text;
+  }
+  function parseYMDStrictToUTCSeconds(y, m, d){
+    const yi = parseInt(y, 10), mi = parseInt(m, 10), di = parseInt(d, 10);
+    if (!Number.isInteger(yi) || String(y).length !== 4) return null;
+    if (!(mi >= 1 && mi <= 12)) return null;
+    if (!(di >= 1 && di <= 31)) return null;
+    const dt = new Date(Date.UTC(yi, mi - 1, di, 0, 0, 0));
+    if (dt.getUTCFullYear() !== yi || (dt.getUTCMonth() + 1) !== mi || dt.getUTCDate() !== di) return null;
+    return Math.floor(dt.getTime() / 1000);
+  }
+  function parseDateToUTCSeconds(s){
+    if(!s) return null;
+    let t = toHalfWidth(String(s).trim().replace(/["']/g,''));
+    t = t.replace(/[\u00A0\u200B\uFEFF]/g, '');
+    t = t.replace(/[（(].*?[)）]/g, '').trim();
+    let m = t.match(/^(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?$/);
+    if (m) { const y=+m[1], mo=+m[2], d=+m[3]; const date=new Date(Date.UTC(y,mo-1,d,0,0,0)); return Number.isFinite(date.getTime()) ? Math.floor(date.getTime()/1000) : null; }
+    m = t.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if(m){ const y=+m[1], mo=+m[2], d=+m[3]; return Math.floor(Date.UTC(y,mo-1,d,0,0,0)/1000); }
+    m = t.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?(?:([+\-]\d{2}:?\d{2}|Z))?$/);
+    if(m){ const y=+m[1], mo=+m[2], d=+m[3]; return Math.floor(Date.UTC(y,mo-1,d,0,0,0)/1000); }
+    const dt = new Date(t); if(!isNaN(dt)) return Math.floor(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate())/1000);
+    return null;
+  }
+  function pickHeaderAndDelimiter(lines){
+    const maxScan = Math.min(10, lines.length);
+    for (let i=0; i<maxScan; i++){
+      const line = toHalfWidth(lines[i]);
+      const counts = [
+        {d:',',c:(line.match(/,/g)||[]).length},
+        {d:'\t',c:(line.match(/\t/g)||[]).length},
+        {d:';',c:(line.match(/;/g)||[]).length}
+      ].sort((a,b)=>b.c-a.c);
+      if (counts[0].c > 0) return {headerIndex: i, delim: counts[0].d === '\t' ? '\t' : counts[0].d};
+    }
+    throw new Error('区切り文字（カンマ/タブ/セミコロン）が見つかりません。');
+  }
+  function normalizeHeader(s){ return toHalfWidth(String(s||'').trim().replace(/^\ufeff/, '')).replace(/["']/g,'').replace(/[\s　]/g,''); }
+  function splitRespectingQuotes(str, delimChar) {
+    if (delimChar === '\t') return str.split('\t');
+    const out = []; let cur=''; let inQuotes=false;
+    for (let i=0;i<str.length;i++){ const ch=str[i];
+      if (ch === '"'){ if (inQuotes && str[i+1] === '"'){ cur+='"'; i++; } else { inQuotes=!inQuotes; } }
+      else if (!inQuotes && ch === delimChar){ out.push(cur); cur=''; }
+      else { cur+=ch; }
+    } out.push(cur); return out;
+  }
+  function parseCSV(rawText){
+    const text = normalizeEOLKeepCRLF(rawText);
+    const lines = text.split(/\r\n|\n/).filter(l => l.trim().length > 0);
+    if (!lines.length) throw new Error('CSVが空です');
+    const { headerIndex, delim } = pickHeaderAndDelimiter(lines);
+    const headerLine = toHalfWidth(lines[headerIndex]);
+    const header = splitRespectingQuotes(headerLine, delim).map(normalizeHeader);
+    const dateAliases = ['日付','基準日','約定日','受渡日','年月日','DATE','Date','date'];
+    const navAliases  = ['基準価額','基準価格','基準価額円','基準価額(円)','基準価額（円）','終値','NAV','nav','Price','price','価格','時価'];
+    let idxDate = header.findIndex(h => dateAliases.includes(h));
+    let idxNav  = header.findIndex(h => navAliases.includes(h));
+    if (idxDate === -1) {
+      let bestCol=-1,bestScore=0;
+      const lookahead=Math.min(lines.length, headerIndex+51);
+      for (let j=0;j<header.length;j++){
+        let ok=0,cnt=0;
+        for (let i=headerIndex+1;i<lookahead;i++){
+          const cols = splitRespectingQuotes(toHalfWidth(lines[i]), delim);
+          if (cols.length<=j) continue;
+          if (parseDateToUTCSeconds(cols[j])) ok++; cnt++;
+        }
+        const ratio = cnt ? ok/cnt : 0; if (ratio>bestScore){bestScore=ratio;bestCol=j;}
+      }
+      if (bestScore>=0.6) idxDate=bestCol;
+    }
+    if (idxDate === -1) throw new Error('ヘッダーに日付列が見つかりません。例: 日付 / Date');
+    if (idxNav === -1) {
+      for (let j=0;j<header.length;j++){
+        if (j===idxDate) continue;
+        let numericCount=0, checked=0;
+        for (let i=headerIndex+1;i<Math.min(lines.length, headerIndex+51);i++){
+          const cols = splitRespectingQuotes(toHalfWidth(lines[i]), delim);
+          if (cols.length<=j) continue;
+          const v = Number(toHalfWidth(String(cols[j])).replace(/["']/g,'').replace(/[\s,円]/g,''));
+          if (!isNaN(v)) numericCount++; checked++;
+        }
+        if (checked>0 && numericCount/checked >= 0.6){ idxNav=j; break; }
+      }
+    }
+    if (idxNav === -1) throw new Error('価格列（基準価額）が特定できませんでした。');
+    const rows=[];
+    for (let i=headerIndex+1;i<lines.length;i++){
+      const cols = splitRespectingQuotes(toHalfWidth(lines[i]), delim);
+      if (cols.length <= Math.max(idxDate, idxNav)) continue;
+      const t = parseDateToUTCSeconds(cols[idxDate]);
+      const v = Number(toHalfWidth(String(cols[idxNav])).replace(/["']/g,'').replace(/[\s,円]/g,'')); 
+      if (!t || !isFinite(v)) continue;
+      rows.push({ time: t, value: v });
+    }
+    rows.sort((a,b)=>a.time-b.time);
+    const dedup=[]; for (const r of rows){ if (dedup.length && dedup[dedup.length-1].time===r.time) dedup[dedup.length-1]=r; else dedup.push(r); }
+    return { rows: dedup, headerIndex, delim, header };
+  }
+  function labelFromTextAndSource(text, sourceLabel){
+    const textNorm = normalizeEOLKeepCRLF(text);
+    const lines = textNorm.split(/\r\n|\n/).filter(l => l.trim().length > 0);
+    const { headerIndex: hi } = pickHeaderAndDelimiter(lines);
+    if (hi > 0) {
+      // nav-chart と同様：先頭行を半角化し、BOM除去、最終的に normalizeLabel を通す
+      return normalizeLabel(toHalfWidth(lines[0] || '').replace(/^\ufeff/, '').trim());
+    }
+    const m = String(sourceLabel||'').match(/^file:(.+)$/);
+    const name = m ? m[1] : (sourceLabel||'series');
+    return normalizeLabel(name);
+  }
+  async function decodePreferSjis(file){
+    const buf = await file.arrayBuffer();
+    function score(text){ let s=0; if (!/\ufffd/.test(text)) s+=2; if (/日付|基準価額|基準価格|分配金|純資産総額/.test(text)) s+=5; if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(text)) s+=1; return s; }
+    let sj=''; try{ sj=new TextDecoder('shift_jis').decode(buf);}catch(_){}
+    const ssj=score(sj); if (ssj>=6) { appendStatus(`デコード: Shift_JIS (${ssj})`); return sj; }
+    let u8=''; try{ u8=new TextDecoder('utf-8').decode(buf);}catch(_){}
+    const su8=score(u8); appendStatus(`デコード比較: Shift_JIS=${ssj} / UTF-8=${su8}`); return su8>ssj?u8:sj;
+  }
+
+  // --- color helpers: always assign a non-duplicating color for new series ---
+  function __usedColors(){
+    try { return new Set(seriesStore.map(s => s && s.color).filter(Boolean)); } catch(_){ return new Set(); }
+  }
+  function __pickColorForNewSeries(){
+    const used = __usedColors();
+    // Prefer the first palette color not in use
+    for (const c of PALETTE){
+      if (!used.has(c)) return c;
+    }
+    // Fallback (both colors in use or palette exhausted):
+    // choose a color different from the most recently added series
+    const last = (seriesStore.length ? seriesStore[seriesStore.length - 1].color : null);
+    for (const c of PALETTE){
+      if (c !== last) return c;
+    }
+    // Absolute fallback
+    return PALETTE[0];
+  }
+
+  // app state
+  const PALETTE = ['#ffea61','#00ffff']; // 上段: 黄色 & シアン
+  const MAX_SERIES = 2;
+  const seriesStore = []; // {label,color,raw,norm}
+  const legendEl = $('#legend');
+  const fileInput = $('#file'); const drop = $('#drop');
+  const baseYearEl=$('#baseY'); const baseMonthEl=$('#baseM'); const baseDayEl=$('#baseD');
+  const updateBaseBtn=$('#updateBase'); const logScaleEl=$('#logScale'); const savePngBtn=$('#savePng'); const swapBtn=$('#swapBtn');
+  let ratioMode = '21'; // '21' = fund2/fund1 - 1 (default), '12' = fund1/fund2 - 1
+  let ratio21Cache = [];
+  let ratio12Cache = [];
+  const topEl = document.getElementById('topChart'); const bottomEl=document.getElementById('bottomChart');
+
+  // charts
+const chartTop = LightweightCharts.createChart(topEl, {
+    layout:{ background:{type:'solid', color:'#111720'}, textColor:'#e8eef6', fontFamily:'Noto Sans JP, system-ui,-apple-system, Segoe UI, Roboto, Helvetica, Arial'},
+    rightPriceScale:{ borderVisible:false },
+    timeScale:{
+      borderVisible:false,
+      timeVisible:true,
+      secondsVisible:false,
+      rightOffset:8,
+      fixLeftEdge:true,
+      fixRightEdge:true,
+      minimumHeight:48,
+      tickMarkFormatter: (t) => {
+        // nav-chart と同等: BusinessDay({year,month,day}) と UTCTimestamp(number) の両方を扱う
+        if (t && typeof t === 'object' && 'year' in t) {
+          const y = t.year;
+          const m = String(t.month).padStart(2,'0');
+          const d = String(t.day).padStart(2,'0');
+          return `${y}/${m}/${d}`;
+        }
+        const dt = new Date((typeof t === 'number' ? t : 0) * 1000);
+        const y = dt.getUTCFullYear();
+        const m = String(dt.getUTCMonth()+1).padStart(2,'0');
+        const d = String(dt.getUTCDate()).padStart(2,'0');
+        return `${y}/${m}/${d}`;
+      }
+    },
+    localization: {
+      timeFormatter: (t) => {
+        // jfunds-nav-chart.html と同等の UTC ベース YYYY-MM-DD
+        if (typeof t === 'number') {
+          const d = new Date(t * 1000);
+          return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+        }
+        if (t && typeof t === 'object' && 'year' in t) {
+          const y = t.year, m = String(t.month).padStart(2,'0'), d = String(t.day).padStart(2,'0');
+          return `${y}-${m}-${d}`;
+        }
+        return String(t);
+      }
+    },
+    grid:{ horzLines:{visible:true,color:'rgba(255,255,255,0.05)'}, vertLines:{visible:false} },
+    crosshair:{
+      mode: LightweightCharts.CrosshairMode.Magnet,
+      vertLine:{ color:'#ffffff', width:1, style: LightweightCharts.LineStyle.Dotted, visible:true, labelVisible:true },
+      horzLine:{ color:'#ffffff', width:1, style: LightweightCharts.LineStyle.Dotted, visible:true, labelVisible:true }
+    },
+    width: topEl.clientWidth, height: topEl.clientHeight,
+  });
+const chartBottom = LightweightCharts.createChart(bottomEl, {
+  layout:{ background:{type:'solid', color:'#111720'}, textColor:'#e8eef6', fontFamily:'Noto Sans JP, system-ui,-apple-system, Segoe UI, Roboto, Helvetica, Arial'},
+  rightPriceScale:{ borderVisible:false },
+  timeScale:{
+    borderVisible:false,
+    timeVisible:true,
+    secondsVisible:false,
+    rightOffset:8,
+    fixLeftEdge:true,
+    fixRightEdge:true,
+    minimumHeight:48,
+    tickMarkFormatter: (t) => {
+      if (t && typeof t === 'object' && 'year' in t) {
+        const y = t.year;
+        const m = String(t.month).padStart(2,'0');
+        const d = String(t.day).padStart(2,'0');
+        return `${y}/${m}/${d}`;
+      }
+      const dt = new Date((typeof t === 'number' ? t : 0) * 1000);
+      const y = dt.getUTCFullYear();
+      const m = String(dt.getUTCMonth()+1).padStart(2,'0');
+      const d = String(dt.getUTCDate()).padStart(2,'0');
+      return `${y}/${m}/${d}`;
+    }
+  },
+  localization: {
+    timeFormatter: (t) => {
+      if (typeof t === 'number') {
+        const d = new Date(t * 1000);
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+      }
+      if (t && typeof t === 'object' && 'year' in t) {
+        const y = t.year, m = String(t.month).padStart(2,'0'), d = String(t.day).padStart(2,'0');
+        return `${y}-${m}-${d}`;
+      }
+      return String(t);
+    }
+  },
+  grid:{ horzLines:{visible:true,color:'rgba(255,255,255,0.05)'}, vertLines:{visible:false} },
+  crosshair:{
+    mode: LightweightCharts.CrosshairMode.Magnet,
+    vertLine:{ color:'#ffffff', width:1, style: LightweightCharts.LineStyle.Dotted, visible:true, labelVisible:true },
+    horzLine:{ color:'#ffffff', width:1, style: LightweightCharts.LineStyle.Dotted, visible:true, labelVisible:true }
+  },
+  width: bottomEl.clientWidth, height: bottomEl.clientHeight,
+});
+new ResizeObserver(()=>chartTop.applyOptions({ width: topEl.clientWidth, height: topEl.clientHeight })).observe(topEl);
+new ResizeObserver(()=>chartBottom.applyOptions({ width: bottomEl.clientWidth, height: bottomEl.clientHeight })).observe(bottomEl);
+
+// --- Custom crosshair overlay (for the non-hovering chart) ---
+function createCrosshairOverlay(_container){
+  const container = _container;
+  // root overlay
+  const root = document.createElement('div');
+  root.style.position = 'absolute';
+  root.style.inset = '0';
+  root.style.pointerEvents = 'none';
+  root.style.zIndex = '40'; // tooltips are zIndex=50
+  root.style.display = 'none';
+  container.appendChild(root);
+
+  // vertical dotted line
+  const v = document.createElement('div');
+  v.style.position = 'absolute';
+  v.style.top = '0';
+  v.style.bottom = '0';
+  v.style.width = '0';
+  v.style.borderLeft = '1px dotted rgba(255,255,255,0.9)';
+  root.appendChild(v);
+
+  // horizontal dotted line
+  const h = document.createElement('div');
+  h.style.position = 'absolute';
+  h.style.left = '0';
+  h.style.right = '0';
+  h.style.height = '0';
+  h.style.borderTop = '1px dotted rgba(255,255,255,0.9)';
+  root.appendChild(h);
+
+  // axis badges (small labels) — optional; shown only if text is provided
+  const xBadge = document.createElement('div');
+  xBadge.style.position = 'absolute';
+  xBadge.style.bottom = '2px';
+  xBadge.style.transform = 'translateX(-50%)';
+  xBadge.style.padding = '1px 4px';
+  xBadge.style.fontSize = '11px';
+  xBadge.style.color = '#e8eef6';
+  xBadge.style.background = '#0f141c';
+  xBadge.style.border = '1px solid #2a3443';
+  xBadge.style.borderRadius = '4px';
+  xBadge.style.whiteSpace = 'nowrap';
+  xBadge.style.display = 'none';
+  root.appendChild(xBadge);
+
+  const yBadge = document.createElement('div');
+  yBadge.style.position = 'absolute';
+  yBadge.style.right = '2px';
+  yBadge.style.transform = 'translateY(-50%)';
+  yBadge.style.padding = '1px 4px';
+  yBadge.style.fontSize = '11px';
+  yBadge.style.color = '#e8eef6';
+  yBadge.style.background = '#0f141c';
+  yBadge.style.border = '1px solid #2a3443';
+  yBadge.style.borderRadius = '4px';
+  yBadge.style.whiteSpace = 'nowrap';
+  yBadge.style.display = 'none';
+  root.appendChild(yBadge);
+
+  function show(x, y, opts){
+    // Account for container padding
+    const cs = getComputedStyle(container);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padT = parseFloat(cs.paddingTop) || 0;
+    // clamp to container bounds
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    const xx = Math.max(0, Math.min(Math.round(x), cw - 1));
+    const yy = Math.max(0, Math.min(Math.round(y), ch - 1));
+
+    // move lines (include padding)
+    v.style.left = (xx + padL) + 'px';
+    h.style.top  = (yy + padT) + 'px';
+
+    // badges (only if provided)
+    const xText = opts && typeof opts.xText === 'string' ? opts.xText : '';
+    const yText = opts && typeof opts.yText === 'string' ? opts.yText : '';
+    if (xText){
+      xBadge.textContent = xText;
+      xBadge.style.left = (xx + padL) + 'px';
+      xBadge.style.display = 'block';
+    }else{
+      xBadge.style.display = 'none';
+    }
+    if (yText){
+      yBadge.textContent = yText;
+      yBadge.style.top = (yy + padT) + 'px';
+      yBadge.style.display = 'block';
+    }else{
+      yBadge.style.display = 'none';
+    }
+
+    // reveal overlay
+    root.style.display = 'block';
+  }
+
+  function hide(){
+    root.style.display = 'none';
+    // keep badges hidden as well
+    xBadge.style.display = 'none';
+    yBadge.style.display = 'none';
+  }
+
+  return { show, hide };
+}
+
+const __topXhair = createCrosshairOverlay(topEl);
+const __bottomXhair = createCrosshairOverlay(bottomEl);
+
+// --- Tooltip/Crosshair sync guards ---
+let __tipSyncTopUntil = 0;    // timestamp (performance.now()) until which we ignore empty crosshair events on top
+let __tipSyncBottomUntil = 0; // timestamp (performance.now()) until which we ignore empty crosshair events on bottom
+// One-shot propagation suppressors to prevent echo loops
+let __skipPropagateFromTopOnce = false;     // when true, TOP handler will not propagate to BOTTOM once
+let __skipPropagateFromBottomOnce = false;  // when true, BOTTOM handler will not propagate to TOP once
+// Reentrancy guards: count self-initiated moveCrosshair events to avoid re-propagation
+let __inTopApiMove = 0;
+let __inBottomApiMove = 0;
+/** Crosshair propagation suppression keyed by timestamp. While active, the opposite handler will not re-propagate. */
+let __propSuppress = { source: null, t: null, deadline: 0 };
+/** Cooldowns to avoid redundant showAtTime for the same timestamp within a short window. */
+let __lastTopTime = null, __lastTopClock = 0;
+let __lastBottomTime = null, __lastBottomClock = 0;
+// Dedup & animation throttles for moveCrosshair
+let __lastCrosshairTopX = null, __lastCrosshairBottomX = null;
+let __rafTop = null, __rafBottom = null;
+/** Helper to now() consistently. */
+function __nowClock(){ return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
+
+  // === Bidirectional timeScale sync (zoom & scroll) ===
+  let __syncing = false;
+  function __setRangeSafe(dstChart, range){
+    if (!range) return;
+    try { dstChart.timeScale().setVisibleRange(range); } catch(_) {}
+  }
+  chartTop.timeScale().subscribeVisibleTimeRangeChange((range)=>{
+    if (__syncing || !range) return;
+    __syncing = true;
+    __setRangeSafe(chartBottom, range);
+    __syncing = false;
+  });
+  chartBottom.timeScale().subscribeVisibleTimeRangeChange((range)=>{
+    if (__syncing || !range) return;
+    __syncing = true;
+    __setRangeSafe(chartTop, range);
+    __syncing = false;
+  });
+
+  function updateScale(){
+    const mode = logScaleEl && logScaleEl.checked ? LightweightCharts.PriceScaleMode.Logarithmic : LightweightCharts.PriceScaleMode.Normal;
+    chartTop.priceScale('right').applyOptions({ mode });
+  }
+  logScaleEl?.addEventListener('change', updateScale); updateScale();
+
+  function updateLegend(){
+    if (!legendEl) return;
+    // nav-chart と同じく、内部ラベルを都度 normalizeLabel で揃える
+    for (const s of seriesStore) s.label = normalizeLabel(s.label);
+    const html = seriesStore.map((s,i)=>`<div class="legend-item"><span class="swatch" style="background:${s.color}"></span><span class="name">${escapeHTML(s.label)}</span><button class="del" data-idx="${i}">削除</button></div>`).join('');
+    legendEl.innerHTML = html;
+  }
+
+  legendEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.del');
+    if (!btn) return;
+    const idx = Number(btn.getAttribute('data-idx'));
+    if (!Number.isInteger(idx)) return;
+    removeSeriesAt(idx);
+  });
+
+  function resetChartsToWaiting(){
+    try{ chartTop.removeSeries(lineTop1); }catch(_){}
+    try{ chartTop.removeSeries(lineTop2); }catch(_){}
+    try{ chartBottom.removeSeries(lineRatio); }catch(_){}
+    lineTop1=null; lineTop2=null; lineRatio=null;
+    baselineTopRef=null; baselineBottomRef=null;
+  }
+
+  function removeSeriesAt(index){
+    if (index<0 || index>=seriesStore.length) return;
+    seriesStore.splice(index,1);
+    updateLegend();
+    resetChartsToWaiting();
+    if (seriesStore.length===0){
+      appendStatus('初期状態です。CSVを2つ読み込むと描画します。');
+      appendStatus('-----');
+    }else if (seriesStore.length===1){
+      appendStatus('2番目のCSVファイルを読み込んでください');
+      appendStatus('-----');
+    }
+  }
+
+  function setBaseDateInputsFromTs(ts){
+    if (ts==null) return; const d=new Date(ts*1000);
+    baseYearEl.value=String(d.getUTCFullYear());
+    baseMonthEl.value=String(d.getUTCMonth()+1).padStart(2,'0');
+    baseDayEl.value=String(d.getUTCDate()).padStart(2,'0');
+  }
+  function getBaseDateStr(){
+    const y=(baseYearEl?.value||'').replace(/\\D/g,'').slice(0,4);
+    const m=(baseMonthEl?.value||'').replace(/\\D/g,'').slice(0,2);
+    const d=(baseDayEl?.value||'').replace(/\\D/g,'').slice(0,2);
+    if (y.length!==4 || !m || !d) return '';
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
+
+  function computeOldestCommonTimestamp(){
+    if (seriesStore.length<2) return null;
+    const s1=new Set(seriesStore[0].raw.map(d=>d.time));
+    const s2=new Set(seriesStore[1].raw.map(d=>d.time));
+    let min=Infinity; for (const t of s1){ if (s2.has(t) && t<min) min=t; }
+    return isFinite(min)?min:null;
+  }
+
+  function normalizeToBaseline(data, baselineTs){
+    const base = data.find(d=>d.time===baselineTs);
+    if (!base) return null; // 厳密一致のみ
+    const factor = 100 / base.value;
+    return data.map(d=>({ time:d.time, value: Math.round((d.value*factor)*1000000)/1000000 }));
+  }
+
+  // Axis label formatter: fixed sign + two decimals, no thousands separators (e.g., -0123.45)
+  function formatAxisFixed(v){
+    const n = Number(v);
+    if (!isFinite(n)) return String(v);
+    const s = n < 0 ? '-' : '';
+    const a = Math.abs(n).toFixed(2);
+    return s + a; // width assumption: "-XXXX.XX"
+  }
+
+  let lineTop1=null, lineTop2=null, lineRatio=null;
+  let baselineTopRef=null, baselineBottomRef=null; // dotted white baselines
+
+  function renderAll(baselineTs){
+    // （保険）過去状態を明示的に断ち切る
+    for (const s of seriesStore) {
+      if (!s) continue;
+      s.norm = [];                      // 内部キャッシュの破棄
+    }
+    try { if (lineTop1) lineTop1.setData([]); } catch(_) {}
+    try { if (lineTop2) lineTop2.setData([]); } catch(_) {}
+    try { if (lineRatio) lineRatio.setData([]); } catch(_) {}
+    if (seriesStore.length<2){ setStatus('2番目のCSVファイルを読み込んでください'); return; }
+    const n1 = normalizeToBaseline(seriesStore[0].raw, baselineTs);
+    const n2 = normalizeToBaseline(seriesStore[1].raw, baselineTs);
+    if (!n1 || !n2){
+      alert('指定した基準日は両CSVに存在する必要があります。');
+      appendStatus('エラー: 基準日が両CSVに存在しません。'); return;
+    }
+    seriesStore[0].norm = n1; seriesStore[1].norm = n2;
+    if (!lineTop1) lineTop1 = chartTop.addLineSeries({ color: seriesStore[0].color, lineWidth:2, priceFormat:{ type:'custom', minMove:0.01, formatter: (v)=>formatAxisFixed(v) }});
+    if (!lineTop2) lineTop2 = chartTop.addLineSeries({ color: seriesStore[1].color, lineWidth:2, priceFormat:{ type:'custom', minMove:0.01, formatter: (v)=>formatAxisFixed(v) }});
+    // baseline (top): 100.00 as white dotted line
+    if (!baselineTopRef && lineTop1) {
+      baselineTopRef = lineTop1.createPriceLine({
+        price: 100.00,
+        color: '#ffffff',
+        lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dotted,
+        axisLabelVisible: false,
+      });
+    }
+    lineTop1.setData(n1); lineTop2.setData(n2);
+    updateScale();
+    // (moved) initial visible range will be applied after bottom series is prepared
+    // Build BOTH ratios over the union of dates; use WhitespaceData ({time}) when missing
+    const map1 = new Map(n1.map(d=>[d.time,d.value]));
+    const map2 = new Map(n2.map(d=>[d.time,d.value]));
+    const r21 = []; // (fund2 / fund1) - 1
+    const r12 = []; // (fund1 / fund2) - 1
+    let i = 0, j = 0;
+    while (i < n1.length || j < n2.length) {
+      const t1 = i < n1.length ? n1[i].time : Infinity;
+      const t2 = j < n2.length ? n2[j].time : Infinity;
+      const t  = Math.min(t1, t2);
+      const v1 = map1.get(t);
+      const v2 = map2.get(t);
+      if (v1 != null && v2 != null) {
+        const a = (v2 / v1) - 1;
+        const b = (v1 / v2) - 1;
+        r21.push(Number.isFinite(a) ? { time: t, value: a } : { time: t });
+        r12.push(Number.isFinite(b) ? { time: t, value: b } : { time: t });
+      } else {
+        // one side missing -> whitespace point extends timeScale without Y autoscale impact
+        r21.push({ time: t });
+        r12.push({ time: t });
+      }
+      if (t1 === t) i++;
+      if (t2 === t) j++;
+    }
+    ratio21Cache = r21;
+    ratio12Cache = r12;
+    if (!lineRatio) lineRatio = chartBottom.addLineSeries({
+      color:'#00ff00', lineWidth:2,
+      priceFormat:{ type:'custom', minMove:0.0001, formatter:(v)=> formatAxisFixed(v*100) }
+    });
+    // baseline (bottom): 0.00 as white dotted line
+    if (!baselineBottomRef && lineRatio) {
+      baselineBottomRef = lineRatio.createPriceLine({
+        price: 0.00,
+        color: '#ffffff',
+        lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dotted,
+        axisLabelVisible: false,
+      });
+    }
+    lineRatio.setData(ratioMode === '21' ? ratio21Cache : ratio12Cache);
+    // Apply initial visible range to BOTH charts based on the OLDEST available date across both CSVs -> latest date
+    const minT = Math.min(n1[0].time, n2[0].time);
+    const maxT = Math.max(n1[n1.length-1].time, n2[n2.length-1].time);
+    __syncing = true;
+    try {
+      chartTop.timeScale().setVisibleRange({ from: minT, to: maxT });
+      chartBottom.timeScale().setVisibleRange({ from: minT, to: maxT });
+    } catch(_) {}
+    __syncing = false;
+    // debug log for verification
+    const vrT = chartTop.timeScale().getVisibleRange();
+    const vrB = chartBottom.timeScale().getVisibleRange();
+    if (vrT && vrB) {
+      const f = (ts)=>{ const d=new Date(ts*1000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`; };
+      appendStatus(`初期レンジTop: ${f(vrT.from)} ~ ${f(vrT.to)}`);
+      appendStatus(`初期レンジBottom: ${f(vrB.from)} ~ ${f(vrB.to)}`);
+    }
+    const rlen = (ratioMode === '21' ? ratio21Cache.length : ratio12Cache.length);
+    appendStatus(`描画完了（基準日: ${new Date(baselineTs*1000).toISOString().slice(0,10)} / 点数: 上段${n1.length}・${n2.length}、下段${rlen}）`);
+    appendStatus('-----');
+  }
+
+  function recomputeDefaultAndRender(){
+    if (seriesStore.length<2){ appendStatus('2番目のCSVファイルを読み込んでください'); appendStatus('-----'); return; }
+    const tCommon = computeOldestCommonTimestamp();
+    if (tCommon==null){ alert('2つのCSVに共通する日付がありません。'); return; }
+    setBaseDateInputsFromTs(tCommon);
+    renderAll(tCommon);
+  }
+
+  // label helpers (nav-chart と同等)
+  function normalizeLabel(name){
+    return String(name||'').replace(/\.csv$/i,'').trim();
+  }
+  function findSeriesIndexByLabel(label){
+    const key = normalizeLabel(label);
+    return seriesStore.findIndex(s => normalizeLabel(s.label) === key);
+  }
+  function upsertSeries(label, rows){
+    // nav-chart と同等の方針：ラベル正規化 → 既存なら置換、色は維持
+    const key = normalizeLabel(label);
+    let idx = findSeriesIndexByLabel(key);
+    const existed = (idx !== -1);
+    if (!existed){
+      if (seriesStore.length >= MAX_SERIES){
+        alert(`読み込み可能なシリーズは最大 ${MAX_SERIES} 件です。`);
+        return false;
+      }
+      seriesStore.push({ label: key, color: __pickColorForNewSeries(), raw: [], norm: [] });
+      idx = seriesStore.length - 1;
+    }
+    const keepColor = seriesStore[idx].color;
+    seriesStore[idx] = { label: key, color: keepColor, raw: rows.slice(), norm: [] };
+    updateLegend();
+    if (existed){ appendStatus(`再読み込み: ${key}`); appendStatus('-----'); }
+    return true;
+  }
+
+  async function handleFiles(files){
+    if (!files || !files.length) return;
+    for (const f of files){
+      if (seriesStore.length >= MAX_SERIES){ alert(`読み込み可能なシリーズは最大 ${MAX_SERIES} 件です。`); break; }
+      try{
+        appendStatus(`読み込み中: ${f.name} (${Math.round(f.size/1024)} KB)`);
+        const text = await decodePreferSjis(f);
+        const { rows, headerIndex, delim } = parseCSV(text);
+        if (!rows.length){ appendStatus('有効な行が見つかりません'); continue; }
+        const label = labelFromTextAndSource(text, `file:${f.name}`);
+        upsertSeries(label, rows);
+        appendStatus([`ラベル: ${label}`, `ヘッダー行: ${headerIndex+1} 行目`, `区切り: ${delim==='\t'?'タブ':delim}`, `件数: ${rows.length}`, '-----'].join('\\n'));
+      }catch(e){ alert(e.message||String(e)); appendStatus('読み込み失敗: '+f.name); }
+    }
+    if (seriesStore.length === 1){ appendStatus('2番目のCSVファイルを読み込んでください'); appendStatus('-----'); resetChartsToWaiting(); }
+    if (seriesStore.length === 2){ recomputeDefaultAndRender(); }
+  }
+  fileInput.addEventListener('change', (e)=>handleFiles(e.target.files));
+  // 全体のドラッグオーバーではデフォルト動作だけ抑止（dropEffectは設定しない）
+  document.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+  document.addEventListener('drop', (e)=>{ e.preventDefault(); });
+  // ドロップ領域では伝播を止め、明示的にコピーを許可
+  drop.addEventListener('dragover',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    drop.classList.add('dragover');
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  });
+  drop.addEventListener('dragleave',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    drop.classList.remove('dragover');
+  });
+  drop.addEventListener('drop',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    drop.classList.remove('dragover');
+    const dt = e.dataTransfer;
+    if (dt && dt.files && dt.files.length) {
+      handleFiles(dt.files);
+    } else {
+      appendStatus('ファイルが見つかりません');
+    }
+  });
+
+  // 基準日更新
+  updateBaseBtn.addEventListener('click', ()=>{
+    if (seriesStore.length<2){ setStatus('2番目のCSVファイルを読み込んでください'); return; }
+    const s = getBaseDateStr();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m){ alert('正しい日付形式で入力してください (YYYY-MM-DD)'); return; }
+    const ts = parseYMDStrictToUTCSeconds(m[1],m[2],m[3]);
+    if (ts==null){ alert('存在しない年月日です'); return; }
+    renderAll(ts);
+  });
+
+  // date inputs enforce
+(function setupDateAutoAdvance(){
+  function enforceAndAutoNext(el, max, next){
+    el.addEventListener('input', ()=>{
+      const v = el.value.replace(/\D/g,'').slice(0, max);
+      el.value = v;
+      // 桁数に達したら次の入力欄へ自動フォーカス移動
+      if (v.length >= max && next) next.focus();
+    });
+  }
+  enforceAndAutoNext(baseYearEl, 4, baseMonthEl);
+  enforceAndAutoNext(baseMonthEl, 2, baseDayEl);
+  enforceAndAutoNext(baseDayEl, 2, null);
+})();
+
+  // PNG保存（上下チャート＋凡例）
+  function saveChartAsPNG(){
+    try{
+      if (seriesStore.length<2){ alert('CSVを2つ読み込んでから保存してください。'); return; }
+      const topCanvas = chartTop.takeScreenshot(true, false);
+      const bottomCanvas = chartBottom.takeScreenshot(true, false);
+      const gap = 16;
+      const w = Math.max(topCanvas.width, bottomCanvas.width);
+      const h = topCanvas.height + gap + bottomCanvas.height;
+      const out = document.createElement('canvas');
+      out.width = w; out.height = h;
+      const ctx = out.getContext('2d');
+      ctx.drawImage(topCanvas, 0, 0);
+      ctx.drawImage(bottomCanvas, 0, topCanvas.height + gap);
+      // 凡例（可視=全件）
+      const pad = 12, sw=12, gap2=8, lineH=18;
+      ctx.font = '12px "Noto Sans JP", sans-serif';
+      const vis = seriesStore; // 全件
+      let maxTextW = 0;
+      for (const s of vis){
+        const w2 = ctx.measureText(String(s.label)).width;
+        if (w2 > maxTextW) maxTextW = w2;
+      }
+      const boxW = pad*2 + (sw + gap2) + Math.ceil(maxTextW);
+      const boxH = pad*2 + lineH * vis.length;
+      ctx.fillStyle = 'rgba(15,20,28,0.85)';
+      ctx.fillRect(pad-6, pad-6, boxW+12, boxH+12);
+      ctx.strokeStyle = 'rgba(42,52,67,0.9)';
+      ctx.strokeRect(pad-6+0.5, pad-6+0.5, boxW+12-1, boxH+12-1);
+      for (let i=0;i<vis.length;i++){
+        const s = vis[i]; const y0 = pad + i*lineH;
+        ctx.fillStyle = s.color || '#6aa0ff'; ctx.fillRect(pad, y0+3, sw, sw);
+        ctx.fillStyle = '#cbd5e1'; ctx.fillText(String(s.label), pad + sw + gap2, y0 + 14);
+      }
+      out.toBlob((blob)=>{
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // Use JST (UTC+9) timestamp in the filename: comparison-YYYYMMDD-HHMMSS.png
+        (function(){
+          const jst = new Date(Date.now() + 9 * 60 * 60 * 1000); // shift UTC -> UTC+9
+          const Y = jst.getUTCFullYear();
+          const M = String(jst.getUTCMonth() + 1).padStart(2, '0');
+          const D = String(jst.getUTCDate()).padStart(2, '0');
+          const h = String(jst.getUTCHours()).padStart(2, '0');
+          const m = String(jst.getUTCMinutes()).padStart(2, '0');
+          const s = String(jst.getUTCSeconds()).padStart(2, '0');
+          a.download = `comparison-${Y}${M}${D}-${h}${m}${s}.png`;
+        })();
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 500);
+      }, 'image/png');
+    }catch(e){
+      alert('画像の保存中にエラーが発生しました: ' + (e.message || e));
+    }
+  }
+  savePngBtn.addEventListener('click', saveChartAsPNG);
+
+  // 分母/分子入れ替え
+  swapBtn?.addEventListener('click', ()=>{
+    if (!lineRatio) return;
+    ratioMode = (ratioMode === '21') ? '12' : '21';
+    const data = (ratioMode === '21') ? ratio21Cache : ratio12Cache;
+    lineRatio.setData(data);
+    appendStatus(`乖離率: 分母/分子を入れ替えました → ${(ratioMode==='21')?'(2/1 - 1)':'(1/2 - 1)'}`);
+  });
+
+  // initial
+  setStatus('CSVを2つ読み込むと、最古共通日で自動正規化して描画します。');
+
+
+
+  // --- Tooltip for chartTop (normalized chart) ---
+  (function setupTopChartTooltip() {
+    // Create tooltip element
+    const tip = document.createElement('div');
+    tip.className = 'lwc-tooltip';
+    tip.style.position = 'absolute';
+    tip.style.display = 'none';
+    tip.style.pointerEvents = 'none';
+    tip.style.zIndex = 50;
+    tip.style.background = '#0f141c';
+    tip.style.color = '#e8eef6';
+    tip.style.border = '1px solid #2a3443';
+    tip.style.borderRadius = '8px';
+    tip.style.padding = '6px 8px';
+    tip.style.fontSize = '12px';
+    tip.style.boxShadow = '0 6px 18px rgba(0,0,0,.35)';
+    tip.style.minWidth = '80px';
+    topEl.appendChild(tip);
+
+    function fmtPrice(v) {
+      try { return Number(v).toLocaleString('ja-JP'); } catch (_) { return String(v); }
+    }
+    function showTip(x, y, html) {
+      // パディング取得
+      const cs = getComputedStyle(topEl);
+      const padL = parseFloat(cs.paddingLeft) || 0;
+      const padT = parseFloat(cs.paddingTop) || 0;
+      // 先に内容を入れて可視化 → 実寸を計測
+      tip.innerHTML = html;
+      tip.style.display = 'block';
+      const rect = tip.getBoundingClientRect();
+      const tw = rect.width || 160;
+      const th = rect.height || 40;
+      const cw = topEl.clientWidth;
+      const ch = topEl.clientHeight;
+      // 位置計算＆クランプ
+      let left = x + padL + 12;
+      let top = y + padT + 12;
+      if (left + tw > cw - 6) left = Math.max(6, cw - tw - 6);
+      if (top + th > ch - 6)  top  = Math.max(6, ch - th - 6);
+      // 変化がなければスキップ
+      const prevLeft = parseFloat(tip.style.left) || -9999;
+      const prevTop  = parseFloat(tip.style.top)  || -9999;
+      if (Math.abs(prevLeft - left) < 0.5 && Math.abs(prevTop - top) < 0.5) return;
+      tip.style.left = left + 'px';
+      tip.style.top  = top  + 'px';
+    }
+    function hideTip() {
+      tip.style.display = 'none';
+      // Do NOT clear crosshair here to avoid extra crosshair events and echo loops.
+      __topXhair.hide();
+    }
+
+    chartTop.subscribeCrosshairMove((param) => {
+      // If this event was caused by our own TOP-API moveCrosshair, consume once and avoid echo propagation.
+      const __fromTopApi = (__inTopApiMove > 0);
+      if (__fromTopApi) { __inTopApiMove--; }
+      // When user is actively hovering TOP, let native crosshair draw; hide our overlay here.
+      if (!__fromTopApi) __topXhair.hide();
+      if (!param || !param.point || param.time === undefined || param.time === null) {
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const topSyncActive = now < __tipSyncTopUntil;
+        const botSyncActive = now < __tipSyncBottomUntil;
+        if (!topSyncActive) {
+          hideTip();
+        }
+        if (!botSyncActive && window.__bottomTip) window.__bottomTip.hide();
+        return;
+      }
+      const { x, y } = param.point;
+      const t = param.time;
+      // Show both series, if data exists
+      const rows = [];
+      if (seriesStore && param.seriesData && typeof param.seriesData.get === 'function') {
+        for (const s of seriesStore) {
+          if (!s) continue;
+          if (!s.norm || !s.norm.length) continue;
+          // Only show if visible (always visible in comparison)
+          if (!s.label || !s.color) continue;
+          // Find series instance
+          let line = null;
+          if (lineTop1 && s.label === seriesStore[0].label) line = lineTop1;
+          if (lineTop2 && s.label === seriesStore[1].label) line = lineTop2;
+          if (!line) continue;
+          const d = param.seriesData.get(line);
+          if (!d) continue;
+          const v = d.value ?? d.close ?? d.open ?? d.high ?? d.low;
+          if (v == null) continue;
+          rows.push(`<div class="row"><span class="swatch" style="background:${s.color};width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px"></span><span class="val">${fmtPrice(v)}</span></div>`);
+        }
+      }
+      if (!rows.length) { hideTip(); if (window.__bottomTip) window.__bottomTip.hide(); return; }
+      showTip(x, y, rows.join(''));
+      if (window.__bottomTip){
+        const tnum = (typeof t === 'number') ? t : (t && typeof t === 'object' && 'year' in t ? Math.floor(Date.UTC(t.year, t.month-1, t.day)/1000) : null);
+        const now = __nowClock();
+        // 直前が Bottom 由来の同一タイムスタンプなら反映しない（エコー防止）
+        const suppressed = (__propSuppress.source === 'bottom' && __propSuppress.t === tnum && now < __propSuppress.deadline);
+        if (!suppressed) window.__bottomTip.showAtTime(tnum);
+      }
+    });
+    topEl.addEventListener('mouseleave', ()=>{
+      hideTip();
+      __lastCrosshairTopX = null;
+      __topXhair.hide();
+      if (window.__bottomTip) window.__bottomTip.hide();
+    });
+
+    // Expose a programmatic API to show/hide top tooltip at a given time
+    window.__topTip = {
+      showAtTime(time){
+        try{
+          // Normalize time to UTCTimestamp (seconds)
+          const tnum = (typeof time === 'number') ? time : (time && typeof time === 'object' && 'year' in time ? Math.floor(Date.UTC(time.year, time.month-1, time.day)/1000) : null);
+          // Precise sync: normalize timestamp to bottom's visual time grid to avoid subpixel offsets
+          const tVis = chartBottom.timeScale().coordinateToTime(
+            chartBottom.timeScale().timeToCoordinate(tnum)
+          );
+          const x = chartTop.timeScale().timeToCoordinate(tVis);
+          // Build rows like the native handler, by looking up values at `tnum`
+          const rows = [];
+          function findValueAt(normArr){
+            if (!normArr || !normArr.length) return null;
+            let lo = 0, hi = normArr.length - 1, resIdx = -1;
+            while (lo <= hi){
+              const mid = (lo + hi) >> 1; const t = normArr[mid].time;
+              if (t === tnum){ resIdx = mid; break; }
+              if (t < tnum){ resIdx = mid; lo = mid + 1; } else { hi = mid - 1; }
+            }
+            if (resIdx === -1) return null; // all points are after tnum
+            const val = normArr[resIdx].value;
+            return (val == null ? null : val);
+          }
+          let yCoord = null;
+          let yValTop = null;
+          for (const s of seriesStore){
+            if (!s || !s.norm || !s.norm.length) continue;
+            const v = findValueAt(s.norm);
+            if (v != null){
+              rows.push(`<div class="row"><span class="swatch" style="background:${s.color};width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px"></span><span class="val">${fmtPrice(v)}</span></div>`);
+              if (yCoord == null){
+                try{
+                  yCoord = (s.label===seriesStore[0].label && lineTop1) ? lineTop1.priceToCoordinate(v)
+                        : (lineTop2 ? lineTop2.priceToCoordinate(v) : null);
+                }catch(_){ yCoord = null; }
+                yValTop = v;
+              }
+            }
+          }
+          if (yCoord == null || !isFinite(yCoord)) { yCoord = 24; }
+          __skipPropagateFromTopOnce = true;
+          const nowA = __nowClock();
+          __tipSyncTopUntil = nowA + 350;
+          // Set suppression token for the same timestamp to prevent BOTTOM echo-back
+          __propSuppress = { source: 'top', t: tnum, deadline: nowA + 350 };
+          // Avoid redundant moveCrosshair when X coordinate hasn't changed
+          if (__lastCrosshairTopX != null && Math.abs(__lastCrosshairTopX - x) < 0.5) {
+            // skip moveCrosshair (same x)
+          } else {
+            __lastCrosshairTopX = x;
+            if (__rafTop) cancelAnimationFrame(__rafTop);
+            __rafTop = requestAnimationFrame(() => {
+              __inTopApiMove++;
+              try { chartTop.moveCrosshair({ x, y: yCoord }); } catch (_) {}
+              __rafTop = null;
+            });
+          }
+          // Ensure crosshair is visible even if the chart isn't hovered
+          // 軸ラベル（非ホバー側用）の文字列
+          const xTextTop = (function(ts){ const d=new Date(ts*1000); return `${d.getUTCFullYear()}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')}`; })(tnum);
+          const yTextTop = (yValTop!=null) ? formatAxisFixed(yValTop) : '';
+          __topXhair.show(x, yCoord, { t: tnum, xText: xTextTop, yText: yTextTop });
+          showTip(x, yCoord, rows.join(''));
+        }catch(_){ hideTip(); }
+      },
+      hide: hideTip,
+    };
+  })();
+
+  // --- Tooltip for chartBottom (ratio chart) ---
+  (function setupBottomChartTooltip() {
+    const tip = document.createElement('div');
+    tip.className = 'lwc-tooltip';
+    tip.style.position = 'absolute';
+    tip.style.display = 'none';
+    tip.style.pointerEvents = 'none';
+    tip.style.zIndex = 50;
+    tip.style.background = '#0f141c';
+    tip.style.color = '#e8eef6';
+    tip.style.border = '1px solid #2a3443';
+    tip.style.borderRadius = '8px';
+    tip.style.padding = '6px 8px';
+    tip.style.fontSize = '12px';
+    tip.style.boxShadow = '0 6px 18px rgba(0,0,0,.35)';
+    tip.style.minWidth = '80px';
+    bottomEl.appendChild(tip);
+
+    function fmtPct(v) {
+      if (v == null || !isFinite(v)) return '';
+      try { return (v * 100).toFixed(2) + '%'; } catch (_) { return ''; }
+    }
+    function showTip(x, y, html) {
+      // パディング取得
+      const cs = getComputedStyle(bottomEl);
+      const padL = parseFloat(cs.paddingLeft) || 0;
+      const padT = parseFloat(cs.paddingTop) || 0;
+      // 先に内容を入れて可視化 → 実寸を計測
+      tip.innerHTML = html;
+      tip.style.display = 'block';
+      const rect = tip.getBoundingClientRect();
+      const tw = rect.width || 160;
+      const th = rect.height || 40;
+      const cw = bottomEl.clientWidth;
+      const ch = bottomEl.clientHeight;
+      // 位置計算＆クランプ
+      let left = x + padL + 12;
+      let top = y + padT + 12;
+      if (left + tw > cw - 6) left = Math.max(6, cw - tw - 6);
+      if (top + th > ch - 6)  top  = Math.max(6, ch - th - 6);
+      // 変化がなければスキップ
+      const prevLeft = parseFloat(tip.style.left) || -9999;
+      const prevTop  = parseFloat(tip.style.top)  || -9999;
+      if (Math.abs(prevLeft - left) < 0.5 && Math.abs(prevTop - top) < 0.5) return;
+      tip.style.left = left + 'px';
+      tip.style.top  = top  + 'px';
+    }
+    function hideTip() {
+      tip.style.display = 'none';
+      // Do NOT clear crosshair here to avoid extra crosshair events and echo loops.
+      __bottomXhair.hide();
+    }
+
+    chartBottom.subscribeCrosshairMove((param) => {
+      // If this event was caused by our own BOT-API moveCrosshair, consume once and avoid echo propagation.
+      const __fromBottomApi = (__inBottomApiMove > 0);
+      if (__fromBottomApi) { __inBottomApiMove--; }
+      // When user is actively hovering BOTTOM, let native crosshair draw; hide our overlay here.
+      if (!__fromBottomApi) __bottomXhair.hide();
+      if (!param || !param.point || param.time === undefined || param.time === null) {
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const topSyncActive = now < __tipSyncTopUntil;
+        const botSyncActive = now < __tipSyncBottomUntil;
+        if (!botSyncActive) {
+          hideTip();
+        }
+        if (!topSyncActive && window.__topTip) window.__topTip.hide();
+        return;
+      }
+      const { x, y } = param.point;
+      const t = param.time;
+      // Only one series (ratio)
+      let v = null;
+      if (param.seriesData && lineRatio) {
+        const d = param.seriesData.get(lineRatio);
+        if (d && d.value != null) v = d.value;
+      }
+      if (v == null) {
+        hideTip();
+        if (window.__topTip) window.__topTip.hide();
+        return;
+      }
+      showTip(x, y,
+        `<div class="row"><span class="swatch" style="background:#00ff00;width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px"></span>
+         <span class="val">${fmtPct(v)}</span></div>`);
+      if (window.__topTip){
+        const tnum = (typeof t === 'number') ? t : (t && typeof t === 'object' && 'year' in t ? Math.floor(Date.UTC(t.year, t.month-1, t.day)/1000) : null);
+        const now = __nowClock();
+        // 直前が Top 由来の同一タイムスタンプなら反映しない（エコー防止）
+        const suppressed = (__propSuppress.source === 'top' && __propSuppress.t === tnum && now < __propSuppress.deadline);
+        if (!suppressed) window.__topTip.showAtTime(tnum);
+      }
+    });
+    bottomEl.addEventListener('mouseleave', ()=>{
+      hideTip();
+      __lastCrosshairBottomX = null;
+      __bottomXhair.hide();
+      if (window.__topTip) window.__topTip.hide();
+    });
+
+    // Expose a programmatic API to show/hide bottom tooltip at a given time
+    window.__bottomTip = {
+      showAtTime(time){
+        try{
+          const tnum = (typeof time === 'number') ? time : (time && typeof time === 'object' && 'year' in time ? Math.floor(Date.UTC(time.year, time.month-1, time.day)/1000) : null);
+          // Precise sync: normalize timestamp to top's visual time grid to avoid subpixel offsets
+          const tVis = chartTop.timeScale().coordinateToTime(
+            chartTop.timeScale().timeToCoordinate(tnum)
+          );
+          const x = chartBottom.timeScale().timeToCoordinate(tVis);
+          // active ratio data based on current mode
+          const data = (ratioMode === '21') ? ratio21Cache : ratio12Cache;
+          function findValueAt(arr){
+            if (!arr || !arr.length) return null;
+            let lo=0, hi=arr.length-1;
+            while(lo<=hi){
+              const mid=(lo+hi)>>1; const t=arr[mid].time;
+              if (t===tnum) return arr[mid].value ?? null; if (t<tnum) lo=mid+1; else hi=mid-1;
+            }
+            return null;
+          }
+          const v = findValueAt(data);
+          if (v == null) {
+            __bottomXhair.hide();
+            hideTip();
+            try { chartBottom.clearCrosshair(); } catch(_) {}
+            return;
+          }
+          let yCoord = null; try{ yCoord = lineRatio ? lineRatio.priceToCoordinate(v) : null; }catch(_){ yCoord = null; }
+          if (yCoord == null || !isFinite(yCoord)) { yCoord = 24; }
+          __skipPropagateFromBottomOnce = true;
+          const nowB = __nowClock();
+          __tipSyncBottomUntil = nowB + 350;
+          // Set suppression token so TOP handler won't echo back immediately for the same timestamp
+          __propSuppress = { source: 'bottom', t: tnum, deadline: nowB + 350 };
+          // Avoid redundant moveCrosshair when X coordinate hasn't changed
+          if (__lastCrosshairBottomX != null && Math.abs(__lastCrosshairBottomX - x) < 0.5) {
+            // skip moveCrosshair (same x)
+          } else {
+            __lastCrosshairBottomX = x;
+            if (__rafBottom) cancelAnimationFrame(__rafBottom);
+            __rafBottom = requestAnimationFrame(() => {
+              __inBottomApiMove++;
+              try { chartBottom.moveCrosshair({ x, y: yCoord }); } catch (_) {}
+              __rafBottom = null;
+            });
+          }
+          // Ensure crosshair is visible even if the chart isn't hovered
+          const xTextBot = (function(ts){ const d=new Date(ts*1000); return `${d.getUTCFullYear()}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')}`; })(tnum);
+          const yTextBot = (v!=null) ? ((v*100).toFixed(2) + '%') : '';
+          __bottomXhair.show(x, yCoord, { t: tnum, xText: xTextBot, yText: yTextBot });
+          showTip(x, yCoord, `<div class="row"><span class="swatch" style="background:#00ff00;width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px"></span><span class="val">${fmtPct(v)}</span></div>`);
+        }catch(_){ hideTip(); }
+      },
+      hide: hideTip,
+    };
+  })();
+
+</script>
+</body>
+</html>

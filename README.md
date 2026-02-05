@@ -1,12 +1,13 @@
 
 # GitHub Pages
 
-* [https://hirotgr.github.io/jfunds-comparison/jfunds-comparison.html](https://hirotgr.github.io/jfunds-comparison/jfunds-comparison.html)
+* https://hirotgr.github.io/jfunds-comparison/
 * 価額データは各投資信託運用会社のWebサイトからCSVファイルをダウンロードしてください。
 
 # ダウンロード
 
-このツールはHTMLファイル単体で機能するので「名前を付けて保存」などでローカルにダウンロードして使用することができます。
+このツールはHTMLファイル単体で機能するSPA(Single Page Application)ですので「名前を付けて保存」などでローカルにダウンロードして使用することができます。 \
+`index.html` を `jfunds-comparison.html` などに名前を付けて保存してブラウザで開けばローカルで実行できます。
 
 # 関連ツール
 
