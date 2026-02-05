@@ -2,7 +2,6 @@
 # GitHub Pages
 
 * https://hirotgr.github.io/jfunds-comparison/
-* 価額データは各投資信託運用会社のWebサイトからCSVファイルをダウンロードしてください。
 
 # ダウンロード
 
@@ -17,6 +16,8 @@
 
 * **jfunds-nav-chart** から派生した投資信託のパフォーマンス比較ツールです。
 * GitHub PagesのURLにアクセスするか、ローカルに保存した **jfunds-comparison.html** をブラウザで開き、投資信託運用会社のサイトからダウンロードしたCSVファイルをドラッグ＆ドロップすればチャートを表示できます。
+* 投資信託の価額データは各投資信託運用会社のWebサイトからCSVファイルをダウンロードしてください。
+  * ダウンロードリンクの例は [投資信託CSVデータの例](https://github.com/hirotgr/jfunds-nav-chart?tab=readme-ov-file#%E6%8A%95%E8%B3%87%E4%BF%A1%E8%A8%97csv%E3%83%87%E3%83%BC%E3%82%BF%E3%81%AE%E4%BE%8B) を参考にしてください。
 * CSVファイルのファイル名は投信コードなどからファンド名に変更してください。CSVファイルの1行目に投資信託名が記載してある場合はファイル名の変更は不要です (例: 三菱UFJアセットマネジメント、大和アセットマネジメント)
   * CSVフォーマットが複雑な場合は対応していません。詳しくはヘルプを参照してください。
 * **2つの投資信託**について、任意の日付の価額を100として正規化し、パフォーマンスを比較できます。◯◯ショックなどでの下落率比較には正規化基準日前のチャートが必要ですが、証券会社やYAHOOでは対応していません。
@@ -32,12 +33,6 @@
 * Lightweight Charts™︎ (©TradingView) ライブラリ取得のために CDN `https://cdn.jsdelivr.net/` への接続性が必要です
 * Googleのフォントライブラリ `https://fonts.googleapis.com` への接続性が必要です。
 * 上記以外、外部への通信は行っていません。**心配な場合はウィルスチェックをしたり、ChatGPTやGeminiにフィアルを放り込んでコードの内容や安全性を質問してください。**
-
-
-# 投資信託CSVデータの例
-
-jfunds-nav-chartの[リポジトリ](https://github.com/hirotgr/jfunds-nav-chart)のREADME.mdを参照してください。
-
 
 
 # ライセンスなど
